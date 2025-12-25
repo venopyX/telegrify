@@ -57,6 +57,31 @@ class TelegramBot:
 
         return await self._send_with_retry("sendPhoto", payload, max_retries)
 
+    async def send_media_group(
+        self,
+        chat_id: str,
+        photo_urls: list[str],
+        caption: str | None = None,
+        parse_mode: str | None = None,
+        max_retries: int = 3,
+    ) -> dict:
+        """Send multiple photos as media group"""
+        if self.test_mode:
+            logger.info(f"TEST MODE - Would send {len(photo_urls)} photos to {chat_id}")
+            return {"ok": True, "result": [{"message_id": 0}]}
+
+        media = []
+        for i, url in enumerate(photo_urls[:10]):  # Telegram limit: 10
+            item = {"type": "photo", "media": url}
+            if i == 0 and caption:
+                item["caption"] = caption
+                if parse_mode:
+                    item["parse_mode"] = parse_mode
+            media.append(item)
+
+        payload = {"chat_id": chat_id, "media": media}
+        return await self._send_with_retry("sendMediaGroup", payload, max_retries)
+
     async def _send_with_retry(self, method: str, payload: dict, max_retries: int) -> dict:
         """Send request with exponential backoff retry"""
         url = f"{self.base_url}{method}"

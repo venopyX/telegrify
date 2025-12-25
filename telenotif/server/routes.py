@@ -58,10 +58,21 @@ def create_endpoint_handler(
 
             parse_mode = payload.get("parse_mode") or endpoint_config.parse_mode
 
-            if payload.get("image_url"):
+            # Send to Telegram
+            image_url = payload.get("image_url")
+            image_urls = payload.get("image_urls", [])
+
+            if image_urls:
+                result = await bot.send_media_group(
+                    chat_id=chat_id,
+                    photo_urls=image_urls,
+                    caption=formatted_message,
+                    parse_mode=parse_mode,
+                )
+            elif image_url:
                 result = await bot.send_photo(
                     chat_id=chat_id,
-                    photo_url=payload["image_url"],
+                    photo_url=image_url,
                     caption=formatted_message,
                     parse_mode=parse_mode,
                 )
