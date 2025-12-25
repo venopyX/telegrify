@@ -5,12 +5,8 @@
 - [x] Structured error responses in routes.py
 - [x] Chat ID validation warning in EndpointConfig
 - [x] Media caption on first photo only (already implemented correctly)
-
-## In Progress
-- [ ] Update docs to reflect changes
-
-## Remaining (This Session)
-- [ ] Jinja2 template engine
+- [x] Jinja2 template engine (with conditionals, loops, filters)
+- [x] Update docs for all changes
 
 ## Future (YAGNI for now)
 - [ ] Rate limiting (slowapi)
