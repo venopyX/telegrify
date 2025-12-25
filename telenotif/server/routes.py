@@ -7,6 +7,7 @@ from fastapi import FastAPI, HTTPException, Header
 
 from telenotif.core.config import EndpointConfig
 from telenotif.core.interfaces import IPlugin
+from telenotif.utils import escape_markdown_v2
 
 logger = logging.getLogger(__name__)
 
@@ -48,15 +49,9 @@ def create_endpoint_handler(
 
     def render_template(template_str: str, payload: dict, parse_mode: str | None) -> str:
         """Render template with payload values"""
-        def escape_markdown(text: str) -> str:
-            """Escape special MarkdownV2 characters in values"""
-            for char in ["_", "*", "[", "]", "(", ")", "~", "`", ">", "#", "+", "-", "=", "|", "{", "}", ".", "!"]:
-                text = str(text).replace(char, f"\\{char}")
-            return text
-
         result = template_str
         for key, value in payload.items():
-            val = escape_markdown(str(value)) if parse_mode == "MarkdownV2" else str(value)
+            val = escape_markdown_v2(str(value)) if parse_mode == "MarkdownV2" else str(value)
             result = result.replace(f"{{{key}}}", val)
         return result
 

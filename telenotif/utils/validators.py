@@ -23,3 +23,10 @@ def validate_parse_mode(parse_mode: str) -> bool:
 def sanitize_payload(payload: dict[str, Any]) -> dict[str, Any]:
     """Remove None values and empty strings from payload"""
     return {k: v for k, v in payload.items() if v is not None and v != ""}
+
+
+def escape_markdown_v2(text: str) -> str:
+    """Escape special MarkdownV2 characters"""
+    for char in ["_", "*", "[", "]", "(", ")", "~", "`", ">", "#", "+", "-", "=", "|", "{", "}", ".", "!"]:
+        text = str(text).replace(char, f"\\{char}")
+    return text
