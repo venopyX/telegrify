@@ -60,7 +60,7 @@ def create_endpoint_handler(
         x_api_key: str | None = Header(None),
     ):
         if api_key and x_api_key != api_key:
-            raise HTTPException(status_code=401, detail="Invalid API key")
+            raise HTTPException(status_code=401, detail={"error": "invalid_api_key", "message": "Invalid or missing API key"})
 
         try:
             chat_id = get_field(payload, "chat_id") or endpoint_config.chat_id
@@ -73,7 +73,7 @@ def create_endpoint_handler(
                 if not formatter:
                     raise HTTPException(
                         status_code=500,
-                        detail=f"Formatter '{endpoint_config.formatter}' not found",
+                        detail={"error": "formatter_not_found", "message": f"Formatter '{endpoint_config.formatter}' not found"},
                     )
 
                 # Set labels if formatter supports it
