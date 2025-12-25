@@ -47,6 +47,10 @@ def create_endpoint_handler(
                     detail=f"Formatter '{endpoint_config.formatter}' not found",
                 )
 
+            # Set labels if formatter supports it
+            if hasattr(formatter, "labels"):
+                formatter.labels = endpoint_config.labels
+
             if isinstance(formatter, IPlugin):
                 formatted_message = formatter.format(payload, endpoint_config.plugin_config)
             else:

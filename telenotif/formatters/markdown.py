@@ -18,17 +18,19 @@ class MarkdownFormatter(BaseFormatter):
         lines = []
 
         for key, value in payload.items():
+            label = self._get_label(key)
             if key.lower() in ["title", "heading", "header"]:
                 lines.append(f"*{self._escape(value)}*")
             elif isinstance(value, dict):
-                lines.append(f"*{self._escape(key)}:*")
+                lines.append(f"*{self._escape(label)}:*")
                 for k, v in value.items():
-                    lines.append(f"  {self._escape(k)}: {self._escape(v)}")
+                    k_label = self._get_label(k)
+                    lines.append(f"  {self._escape(k_label)}: {self._escape(v)}")
             elif isinstance(value, list):
-                lines.append(f"*{self._escape(key)}:*")
+                lines.append(f"*{self._escape(label)}:*")
                 for item in value:
                     lines.append(f"  • {self._escape(item)}")
             else:
-                lines.append(f"{self._escape(key)}: {self._escape(value)}")
+                lines.append(f"{self._escape(label)}: {self._escape(value)}")
 
         return "\n".join(lines)
