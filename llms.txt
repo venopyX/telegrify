@@ -1,0 +1,264 @@
+# Telegrify
+
+> Simple, powerful Telegram notification framework for Python. Receives HTTP webhooks and forwards them as formatted Telegram messages. Built on FastAPI and aiohttp with plugin support, Jinja2 templates, inline keyboards, and webhook handlers. Python 3.10+.
+
+Telegrify is designed for developers who need to send Telegram notifications from their applications without building a full bot. It's ideal for alerts, order notifications, CI/CD pipelines, monitoring systems, and any webhook-to-Telegram use case.
+
+## Important Notes
+
+- All configuration is done via a single `config.yaml` file
+- Supports environment variable substitution with `${VAR_NAME}` syntax
+- Templates use Jinja2 syntax: `{{ variable }}`, `{% if %}`, `{% for %}`
+- MarkdownV2 special characters are auto-escaped in templates
+- Inline keyboard buttons support dynamic templates from payload data
+- Webhook endpoint receives Telegram updates for button clicks and commands
+- No polling required - works with serverless platforms (Render, Vercel, etc.)
+
+## Docs
+
+- [README](https://github.com/venopyX/telegrify/blob/main/README.md): Quick start guide, features overview, configuration reference
+- [USAGE](https://github.com/venopyX/telegrify/blob/main/USAGE.md): Complete usage guide with examples for all features
+- [CHANGELOG](https://github.com/venopyX/telegrify/blob/main/CHANGELOG.md): Version history and release notes
+- [FUTURE](https://github.com/venopyX/telegrify/blob/main/FUTURE.md): Roadmap and planned features
+
+## Installation
+
+```bash
+pip install telegrify
+```
+
+## Quick Start
+
+```bash
+# Create new project
+telegrify init my_notifier
+cd my_notifier
+
+# Edit config.yaml with your bot token and chat_id
+# Then run:
+telegrify run
+```
+
+## CLI Commands
+
+```bash
+telegrify init <name>      # Create new project with config template
+telegrify run              # Start the notification server
+telegrify run --reload     # Start with auto-reload (development)
+telegrify validate         # Validate config.yaml
+telegrify webhook setup    # Register webhook with Telegram
+telegrify webhook info     # Show current webhook status
+telegrify webhook delete   # Remove webhook from Telegram
+```
+
+## Configuration Structure
+
+```yaml
+bot:
+  token: "${TELEGRAM_BOT_TOKEN}"  # Bot token from @BotFather
+  webhook_url: "https://your-domain.com"  # For receiving updates
+  webhook_path: "/bot/webhook"  # Webhook endpoint path
+
+templates:
+  template_name: |
+    Jinja2 template with {{ variables }}
+    {% if condition %}conditional{% endif %}
+    {% for item in items %}• {{ item }}{% endfor %}
+
+endpoints:
+  - path: "/webhook/endpoint"     # HTTP POST endpoint
+    chat_id: "123456789"          # Single chat
+    chat_ids: ["123", "456"]      # Or multiple chats
+    formatter: "plain"            # plain, markdown, or plugin name
+    template: "template_name"     # Use template instead of formatter
+    parse_mode: "MarkdownV2"      # Telegram parse mode
+    labels:                       # Custom display labels
+      field_name: "🏷️ Display Name"
+    field_map:                    # Map nested JSON fields
+      image_url: "data.photo.url"
+    buttons:                      # Inline keyboard
+      - - text: "Button {{ id }}"
+          url: "https://example.com/{{ id }}"
+        - text: "Action"
+          callback_data: "action_{{ id }}"
+
+commands:
+  - command: "/start"
+    response: "Welcome {{ first_name }}!"
+    parse_mode: "MarkdownV2"
+    buttons: []  # Optional buttons
+
+callbacks:
+  - data: "action"
+    response: "Action completed!"
+    url: "https://your-api.com/callback"  # Optional webhook
+
+server:
+  host: "0.0.0.0"
+  port: 8000
+  api_key: "${API_KEY}"  # Optional authentication
+```
+
+## API
+
+### Sending Notifications
+
+```bash
+# Simple message
+curl -X POST http://localhost:8000/your/endpoint \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Hello!"}'
+
+# With template variables
+curl -X POST http://localhost:8000/notify/order \
+  -H "Content-Type: application/json" \
+  -d '{"order_id": "123", "customer": "John", "total": "$99"}'
+
+# With image
+curl -X POST http://localhost:8000/notify \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Photo", "image_url": "https://example.com/photo.jpg"}'
+
+# With multiple images (gallery)
+curl -X POST http://localhost:8000/notify \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Gallery", "image_urls": ["url1", "url2", "url3"]}'
+
+# Override chat_id per request
+curl -X POST http://localhost:8000/notify \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Hello", "chat_id": "987654321"}'
+
+# Broadcast to multiple chats
+curl -X POST http://localhost:8000/notify \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Broadcast", "chat_ids": ["123", "456", "789"]}'
+```
+
+### Response Format
+
+Success:
+```json
+{
+  "status": "sent",
+  "results": [
+    {"chat_id": "123", "message_id": 456}
+  ]
+}
+```
+
+Error:
+```json
+{
+  "detail": {
+    "error": "error_code",
+    "message": "Error description"
+  }
+}
+```
+
+Error codes: `invalid_api_key`, `formatter_not_found`, `send_failed`, `no_chat_id`
+
+## Creating Custom Plugins
+
+```python
+# plugins/my_formatter.py
+from telegrify import IPlugin
+
+class MyFormatter(IPlugin):
+    @property
+    def name(self) -> str:
+        return "my_formatter"
+    
+    def format(self, payload: dict, config: dict) -> str:
+        prefix = config.get("prefix", "📢")
+        return f"{prefix} {payload.get('message', '')}"
+```
+
+Use in config:
+```yaml
+endpoints:
+  - path: "/notify"
+    formatter: "my_formatter"
+    plugin_config:
+      prefix: "🔔"
+```
+
+## Python API
+
+```python
+from telegrify import create_app, IPlugin, IFormatter
+
+# Create FastAPI app from config
+app = create_app("config.yaml")
+
+# Access components
+bot = app.state.bot
+config = app.state.config
+registry = app.state.registry
+
+# Send message programmatically
+import asyncio
+from telegrify.core.bot import TelegramBot
+
+bot = TelegramBot("BOT_TOKEN")
+asyncio.run(bot.send_message("CHAT_ID", "Hello!"))
+asyncio.run(bot.send_photo("CHAT_ID", "https://example.com/photo.jpg", "Caption"))
+```
+
+## Examples
+
+### Order Notification with Template
+
+```yaml
+templates:
+  order: |
+    🛒 *Order \#{{ order_id }}*
+    👤 {{ customer }}
+    💰 {{ total }}
+
+endpoints:
+  - path: "/orders"
+    chat_id: "123456789"
+    template: "order"
+    parse_mode: "MarkdownV2"
+    buttons:
+      - - text: "View Order"
+          url: "https://shop.com/orders/{{ order_id }}"
+```
+
+### CI/CD Alert
+
+```yaml
+endpoints:
+  - path: "/ci/notify"
+    chat_id: "-1001234567890"
+    formatter: "markdown"
+    parse_mode: "MarkdownV2"
+    labels:
+      status: "📊 Status"
+      branch: "🌿 Branch"
+      commit: "📝 Commit"
+```
+
+### Multi-Channel Broadcast
+
+```yaml
+endpoints:
+  - path: "/broadcast"
+    chat_ids:
+      - "123456789"
+      - "-1001234567890"
+      - "@my_channel"
+    formatter: "plain"
+```
+
+## Source Code
+
+- [GitHub Repository](https://github.com/venopyX/telegrify)
+- [PyPI Package](https://pypi.org/project/telegrify/)
+
+## Optional
+
+- [TODO](https://github.com/venopyX/telegrify/blob/main/TODO.md): Development task tracking
+- [PUBLISHING](https://github.com/venopyX/telegrify/blob/main/PUBLISHING.md): Guide for publishing new versions
