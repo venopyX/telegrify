@@ -12,9 +12,13 @@ TeleNotif receives HTTP webhooks and forwards them as formatted Telegram message
 - 🚀 **Simple** - Install, configure, run in under 5 minutes
 - 🔌 **Plugin System** - Custom formatters without touching core code
 - 📱 **All Chat Types** - Private chats, groups, supergroups, channels
+- 📢 **Broadcast** - Send to multiple chats simultaneously
 - 🖼️ **Rich Media** - Single images, photo galleries (up to 10)
+- 🎹 **Inline Keyboards** - Interactive buttons with dynamic templates
+- 🤖 **Command Handlers** - Respond to /start, /help, etc.
 - 🏷️ **Custom Labels** - Map `order_id` → `🆔 Order ID`
 - 🔀 **Field Mapping** - Map nested JSON fields with dot notation
+- 📝 **Jinja2 Templates** - Conditionals, loops, filters
 - 🎨 **Formatters** - Plain text, Markdown, or custom plugins
 - 🔒 **Secure** - API key authentication
 - ♻️ **Reliable** - Automatic retries with exponential backoff
@@ -77,6 +81,8 @@ curl -X POST http://localhost:8000/notify/orders \
 bot:
   token: "${TELEGRAM_BOT_TOKEN}"  # Bot token (supports env vars)
   test_mode: false                 # Log instead of sending (for testing)
+  webhook_url: "${WEBHOOK_URL}"    # Public URL for receiving updates
+  webhook_path: "/bot/webhook"     # Webhook endpoint path
 ```
 
 ### Templates
@@ -130,6 +136,9 @@ telenotif init <name>     # Create new project
 telenotif run             # Start server
 telenotif run --reload    # Start with auto-reload (dev)
 telenotif validate        # Validate config file
+telenotif webhook setup   # Register webhook with Telegram
+telenotif webhook info    # Show webhook status
+telenotif webhook delete  # Remove webhook
 telenotif --version       # Show version
 ```
 

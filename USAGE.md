@@ -8,6 +8,8 @@ Complete guide for using TeleNotif in your projects.
 - [Configuration](#configuration)
 - [Message Templates](#message-templates)
 - [Sending Notifications](#sending-notifications)
+- [Inline Keyboards](#inline-keyboards)
+- [Webhooks & Commands](#webhooks--commands)
 - [Formatters](#formatters)
 - [Custom Plugins](#custom-plugins)
 - [Field Mapping](#field-mapping)
@@ -27,7 +29,7 @@ pip install telenotif
 ### From Source
 
 ```bash
-git clone https://github.com/yourusername/telenotif.git
+git clone https://github.com/venopyx/telenotif.git
 cd telenotif
 pip install -e .
 ```
@@ -286,6 +288,146 @@ curl -X POST http://localhost:8000/orders \
 - Filters: `{{ name|upper }}`, `{{ price|default('N/A') }}`
 
 **Note:** When using `parse_mode: "MarkdownV2"`, variable values are automatically escaped.
+
+---
+
+## Inline Keyboards
+
+Add interactive buttons to your messages.
+
+### Static Buttons
+
+```yaml
+endpoints:
+  - path: "/notify/approval"
+    chat_id: "8345389653"
+    formatter: "plain"
+    buttons:
+      # Row 1: Two buttons
+      - - text: "✅ Approve"
+          callback_data: "approve"
+        - text: "❌ Reject"
+          callback_data: "reject"
+      # Row 2: URL button
+      - - text: "🔗 View Details"
+          url: "https://example.com/details"
+```
+
+### Dynamic Buttons (with Jinja2)
+
+Button text, URL, and callback_data support Jinja2 templates:
+
+```yaml
+endpoints:
+  - path: "/notify/order"
+    chat_id: "8345389653"
+    formatter: "plain"
+    buttons:
+      - - text: "📦 Track Order #{{ order_id }}"
+          url: "https://example.com/track/{{ order_id }}"
+      - - text: "✅ Confirm"
+          callback_data: "confirm_{{ order_id }}"
+        - text: "❌ Cancel"
+          callback_data: "cancel_{{ order_id }}"
+```
+
+**Request:**
+```json
+{
+  "message": "New order received",
+  "order_id": "12345"
+}
+```
+
+**Result:** Buttons render with actual values from payload.
+
+### Handling Button Clicks
+
+Define callback handlers in config:
+
+```yaml
+callbacks:
+  - data: "approve"
+    response: "✅ Approved!"
+  - data: "reject"
+    response: "❌ Rejected!"
+    url: "https://your-api.com/rejected"  # Optional: forward to your API
+```
+
+---
+
+## Webhooks & Commands
+
+### Setting Up Webhooks
+
+Webhooks allow Telegram to send updates (button clicks, commands) to your server.
+
+**1. Configure webhook URL:**
+
+```yaml
+bot:
+  token: "${TELEGRAM_BOT_TOKEN}"
+  webhook_url: "https://your-app.onrender.com"  # Your public URL
+  webhook_path: "/bot/webhook"  # Default path
+```
+
+**2. Register webhook with Telegram:**
+
+```bash
+telenotif webhook setup
+```
+
+**3. Verify webhook:**
+
+```bash
+telenotif webhook info
+```
+
+**4. Remove webhook (if needed):**
+
+```bash
+telenotif webhook delete
+```
+
+### Command Handlers
+
+Respond to bot commands like `/start`, `/help`:
+
+```yaml
+commands:
+  - command: "/start"
+    response: |
+      👋 Welcome {{ first_name }}!
+      
+      I'm TeleNotif bot. I send notifications from your apps.
+    buttons:
+      - - text: "📚 Documentation"
+          url: "https://github.com/venopyx/telenotif"
+
+  - command: "/help"
+    response: |
+      📖 *Available Commands*
+      
+      /start \- Welcome message
+      /help \- Show this help
+      /status \- Check bot status
+    parse_mode: "MarkdownV2"
+
+  - command: "/status"
+    response: "✅ Bot is running!"
+```
+
+### Available Context Variables
+
+In command responses, you can use:
+
+| Variable | Description |
+|----------|-------------|
+| `{{ first_name }}` | User's first name |
+| `{{ username }}` | User's @username |
+| `{{ chat_id }}` | Chat ID |
+| `{{ user }}` | Full user object |
+| `{{ command }}` | Command that was triggered |
 
 ---
 
