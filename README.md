@@ -95,7 +95,11 @@ templates:
 ```yaml
 endpoints:
   - path: "/webhook/orders"        # HTTP endpoint path
-    chat_id: "8345389653"          # Telegram chat/group/channel ID
+    chat_id: "8345389653"          # Single chat ID
+    chat_ids:                      # Or multiple chat IDs
+      - "8345389653"
+      - "-1001234567890"
+      - "@my_channel"
     formatter: "markdown"          # plain, markdown, or plugin name
     template: "order_received"     # Use template instead of formatter
     parse_mode: "MarkdownV2"       # Telegram parse mode
