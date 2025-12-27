@@ -3,10 +3,45 @@
 import os
 from typing import Any
 
-from pydantic import BaseModel, Field, field_validator
+from dotenv import load_dotenv
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+# Load .env file
+load_dotenv()
 
 
-class BotConfig(BaseModel):
+def resolve_env_var(value: Any) -> Any:
+    """Resolve environment variable with better error messages"""
+    if isinstance(value, str) and value.startswith("${") and value.endswith("}"):
+        env_var = value[2:-1]
+        # Support default values: ${VAR:-default}
+        if ":-" in env_var:
+            var_name, default_value = env_var.split(":-", 1)
+            resolved = os.getenv(var_name, default_value)
+        else:
+            resolved = os.getenv(env_var)
+            if resolved is None:
+                raise ValueError(f"Environment variable '{env_var}' is not set. Please set it in .env file or export {env_var}=your_value")
+        return resolved
+    elif isinstance(value, list):
+        return [resolve_env_var(item) for item in value]
+    elif isinstance(value, dict):
+        return {k: resolve_env_var(v) for k, v in value.items()}
+    return value
+
+
+class EnvVarMixin:
+    """Mixin to add env var resolution to all fields"""
+    
+    @model_validator(mode="before")
+    @classmethod
+    def resolve_env_vars(cls, values):
+        if isinstance(values, dict):
+            return {k: resolve_env_var(v) for k, v in values.items()}
+        return values
+
+
+class BotConfig(BaseModel, EnvVarMixin):
     """Telegram bot configuration"""
 
     token: str = Field(..., description="Telegram bot token")
@@ -14,27 +49,8 @@ class BotConfig(BaseModel):
     webhook_url: str | None = Field(default=None, description="Public URL for webhook")
     webhook_path: str = Field(default="/bot/webhook", description="Webhook endpoint path")
 
-    @field_validator("token")
-    @classmethod
-    def validate_token(cls, v: str) -> str:
-        if v.startswith("${") and v.endswith("}"):
-            env_var = v[2:-1]
-            token = os.getenv(env_var)
-            if not token:
-                raise ValueError(f"Environment variable {env_var} not set")
-            return token
-        return v
 
-    @field_validator("webhook_url")
-    @classmethod
-    def validate_webhook_url(cls, v: str | None) -> str | None:
-        if v and v.startswith("${") and v.endswith("}"):
-            env_var = v[2:-1]
-            return os.getenv(env_var)
-        return v
-
-
-class ButtonConfig(BaseModel):
+class ButtonConfig(BaseModel, EnvVarMixin):
     """Configuration for inline keyboard button"""
     
     text: str = Field(..., description="Button text")
@@ -42,7 +58,7 @@ class ButtonConfig(BaseModel):
     callback_data: str | None = Field(default=None, description="Callback data")
 
 
-class EndpointConfig(BaseModel):
+class EndpointConfig(BaseModel, EnvVarMixin):
     """Configuration for a single notification endpoint"""
 
     path: str = Field(..., description="API endpoint path")
@@ -68,6 +84,7 @@ class EndpointConfig(BaseModel):
     def validate_chat_id(cls, v: str | None) -> str | None:
         if v is None:
             return v
+        
         import logging
         logger = logging.getLogger(__name__)
         
@@ -89,23 +106,16 @@ class EndpointConfig(BaseModel):
         return ids
 
 
-class ServerConfig(BaseModel):
+class ServerConfig(BaseModel, EnvVarMixin):
     """Server configuration"""
 
     host: str = Field(default="0.0.0.0", description="Server host")
     port: int = Field(default=8000, description="Server port")
     api_key: str | None = Field(default=None, description="API key for authentication")
-
-    @field_validator("api_key")
-    @classmethod
-    def validate_api_key(cls, v: str | None) -> str | None:
-        if v and v.startswith("${") and v.endswith("}"):
-            env_var = v[2:-1]
-            return os.getenv(env_var)
-        return v
+    cors_origins: list[str] = Field(default=["*"], description="CORS allowed origins")
 
 
-class LoggingConfig(BaseModel):
+class LoggingConfig(BaseModel, EnvVarMixin):
     """Logging configuration"""
 
     level: str = Field(default="INFO", description="Log level")
@@ -115,7 +125,7 @@ class LoggingConfig(BaseModel):
     )
 
 
-class CallbackConfig(BaseModel):
+class CallbackConfig(BaseModel, EnvVarMixin):
     """Configuration for button callback handlers"""
     
     data: str = Field(..., description="Callback data to match")
@@ -123,7 +133,7 @@ class CallbackConfig(BaseModel):
     url: str | None = Field(default=None, description="URL to POST callback to")
 
 
-class CommandConfig(BaseModel):
+class CommandConfig(BaseModel, EnvVarMixin):
     """Configuration for bot command handlers"""
     
     command: str = Field(..., description="Command to match (e.g., /start, /help)")
@@ -132,7 +142,7 @@ class CommandConfig(BaseModel):
     buttons: list[list[ButtonConfig]] = Field(default_factory=list, description="Optional buttons")
 
 
-class AppConfig(BaseModel):
+class AppConfig(BaseModel, EnvVarMixin):
     """Root configuration model"""
 
     bot: BotConfig

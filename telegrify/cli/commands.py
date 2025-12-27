@@ -34,21 +34,23 @@ def init(project_name: str):
 bot:
   token: "${TELEGRAM_BOT_TOKEN}"
   test_mode: false
+  webhook_url: "${WEBHOOK_URL}"  # Your public URL (e.g., https://yourapp.onrender.com)
 
 endpoints:
   - path: "/notify/orders"
-    chat_id: "-1001234567890"
+    chat_id: "${CHAT_ID}"
     formatter: "plain"
 
   - path: "/notify/alerts"
-    chat_id: "123456789"
+    chat_id: "${CHAT_ID}"
     formatter: "markdown"
     parse_mode: "Markdown"
 
 server:
   host: "0.0.0.0"
-  port: 8000
+  port: "${PORT:-8000}"  # Use PORT env var or default to 8000
   api_key: "${API_KEY}"
+  cors_origins: ["*"]  # Allow all origins, customize as needed
 
 logging:
   level: "INFO"
@@ -98,7 +100,21 @@ class OrderFormatter(IPlugin):
 '''
     (project_path / "plugins" / "example_formatter.py").write_text(plugin_content)
 
-    (project_path / "requirements.txt").write_text("telegrify>=1.0.0\n")
+    # Get current telegrify version from development
+    import sys
+    import subprocess
+    try:
+        # Try to get version from current development install
+        result = subprocess.run([sys.executable, "-c", "import telegrify; print(telegrify.__version__)"], 
+                              capture_output=True, text=True, cwd=Path(__file__).parent.parent.parent)
+        if result.returncode == 0:
+            current_version = result.stdout.strip()
+        else:
+            current_version = "0.9.0"  # fallback
+    except Exception:
+        current_version = "0.9.0"  # fallback
+
+    (project_path / "requirements.txt").write_text(f"telegrify>={current_version}\n")
 
     readme = f"""# {project_name}
 
@@ -129,7 +145,11 @@ Telegrify notification service
     (project_path / "README.md").write_text(readme)
 
     (project_path / ".env.example").write_text(
-        "TELEGRAM_BOT_TOKEN=your_bot_token_here\nAPI_KEY=your_api_key_here\n"
+        "TELEGRAM_BOT_TOKEN=your_bot_token_here\n"
+        "WEBHOOK_URL=https://yourapp.onrender.com\n"
+        "CHAT_ID=your_chat_id_here\n"
+        "API_KEY=your_api_key_here\n"
+        "PORT=8000\n"
     )
 
     click.echo("✓ Project created successfully!")

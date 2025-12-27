@@ -5,6 +5,7 @@ from pathlib import Path
 
 import yaml
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from telegrify.core.bot import TelegramBot
 from telegrify.core.config import AppConfig
@@ -27,7 +28,16 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
     app = FastAPI(
         title="Telegrify",
         description="Simple Telegram notification framework",
-        version="1.0.0",
+        version="0.9.0",
+    )
+
+    # Add CORS middleware
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=config.server.cors_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
 
     bot = TelegramBot(token=config.bot.token, test_mode=config.bot.test_mode)
@@ -49,6 +59,20 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
     app.state.templates = config.templates
 
     setup_routes(app)
+
+    # Root endpoint
+    @app.get("/")
+    async def root():
+        return {
+            "name": "Telegrify",
+            "version": "0.9.0",
+            "description": "Simple Telegram notification framework",
+            "status": "healthy",
+            "endpoints": len(config.endpoints),
+            "formatters": registry.list_formatters(),
+            "docs": "/docs",
+            "health": "/health",
+        }
 
     @app.get("/health")
     async def health_check():
